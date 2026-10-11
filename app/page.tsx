@@ -19,7 +19,6 @@ export default function Home() {
         <div className="intro">
           <div><p>I study mathematics and computer science at MIT. Recently I’ve worked on LLM inference infrastructure, a multiplayer web game, and a couple of Android apps.</p><a className="button" href="/Sihan-Wang-Resume.pdf" target="_blank" rel="noreferrer">View résumé <ArrowUpRight size={17}/></a><a className="github" href="https://github.com/sophiawang85" target="_blank" rel="noreferrer">GitHub ↗</a></div>
         </div>
-        <div className="meta"><span>Cambridge, MA</span></div>
       </section>
       <section className="experience" id="experience">
         <div className="heading"><p className="eyebrow">01 / EXPERIENCE</p><h2>Where I’ve worked.</h2></div>
@@ -39,7 +38,7 @@ export default function Home() {
           <p className="round-note"><strong>Three rounds:</strong> standard drawing, invisible ink, and a final chaos round with a shared prompt pool.</p>
         </div>
         <div className="case-study">
-          <div className="case-heading"><p className="eyebrow">BEHIND THE GAME</p><h3>Some notes on<br/>the backend.</h3><p>Beyond getting players into the same room, the server had to hand out prompts fairly and keep everyone’s view of the game in sync.</p></div>
+          <div className="case-heading"><p className="eyebrow">BEHIND THE GAME</p><h3>Some notes on the backend.</h3><p>Beyond getting players into the same room, the server had to hand out prompts fairly and keep everyone’s view of the game in sync.</p></div>
           <div className="engineering-points">
             <div><span>01</span><div><h4>Prompts without spoilers</h4><p>I built server-side assignment logic that shuffles prompts and distributes them to other players. Matching excludes both the prompt’s author and the artist, then favors players with fewer assigned tasks.</p><a href={`${code}/blob/main/server/api.js`} target="_blank" rel="noreferrer">Assignment logic ↗</a></div></div>
             <div><span>02</span><div><h4>Scores that reward both sides</h4><p>Server-calculated scores combine how recognizable a player’s drawings are with their matching accuracy, applying different multipliers across rounds.</p></div></div>
