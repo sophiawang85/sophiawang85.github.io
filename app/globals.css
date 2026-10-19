@@ -164,3 +164,8 @@ html.still .wash i,html.still .scroll-hint{animation:none}
 @media(max-width:860px){.feature,.pair,.about{grid-template-columns:1fr}.pair{grid-template-rows:none;row-gap:22px}.card{grid-row:auto;grid-template-rows:none;display:flex;flex-direction:column}.job{grid-template-columns:1fr;gap:6px}.media{min-height:260px}}
 @media(max-width:640px){.shell{width:calc(100% - 32px)}nav a:nth-child(1),nav a:nth-child(4){display:none}nav a{padding:7px 10px}.topbar{padding-left:16px}
   .hero{min-height:auto;padding:64px 0 84px}.intro{padding:18px 20px}.job{padding:20px}.copy{padding:22px}.media.easel h3{font-size:44px}.media.easel h3 em{font-size:32px}.media.easel img{width:140px}.about>.glass{padding:22px}}
+
+/* demo-only: effect switcher (removed once an effect is chosen) */
+.fx-switch{position:fixed;left:18px;bottom:18px;z-index:30;display:flex;gap:4px;padding:5px;border-radius:999px;border:1px solid var(--glass-edge);background:var(--glass-strong);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:var(--shadow);max-width:calc(100vw - 170px);overflow-x:auto;scrollbar-width:none}
+.fx-switch button{font:500 12px/1 var(--mono);padding:7px 11px;border-radius:999px;border:0;background:transparent;color:var(--ink-soft);cursor:pointer;white-space:nowrap}
+.fx-switch button[aria-pressed="true"]{background:#fff;color:var(--accent);box-shadow:0 3px 12px -5px rgba(91,75,209,.5)}
