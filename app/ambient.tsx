@@ -1,9 +1,47 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 
-type Ripple = { x: number; y: number; t: number; big: boolean };
+const CLUSTER = ['#8f7be8', '#e889ae', '#6fb6e6'] as const;  // node colors = three "clusters"
+const LINK = 110, REACH = 160;                                 // px: node-to-node and pointer-to-node link distance
 
-/** Painterly background, cursor ripples, and a motion switch (honours prefers-reduced-motion). */
+type Node = { x: number; y: number; vx: number; vy: number; c: number };
+const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+
+/** Drifting graph: nearby nodes link (same-cluster links in color), and the pointer joins in as a node. */
+function constellation(w: number, h: number) {
+  const n = Math.round(Math.min(110, Math.max(40, (w * h) / 16000)));
+  const nodes: Node[] = Array.from({ length: n }, () => ({ x: rnd(0, w), y: rnd(0, h), vx: rnd(-0.22, 0.22), vy: rnd(-0.22, 0.22), c: Math.floor(Math.random() * 3) }));
+  return (ctx: CanvasRenderingContext2D, mx: number, my: number) => {
+    ctx.clearRect(0, 0, w, h);
+    for (const p of nodes) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > w) p.vx *= -1;
+      if (p.y < 0 || p.y > h) p.vy *= -1;
+      const dx = mx - p.x, dy = my - p.y, d = Math.hypot(dx, dy);
+      if (d < REACH && d > 1) { p.x += (dx / d) * 0.3; p.y += (dy / d) * 0.3; }  // gentle pull toward the pointer
+    }
+    ctx.lineWidth = 1;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = nodes[i], b = nodes[j], d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (d >= LINK) continue;
+      const same = a.c === b.c;
+      ctx.strokeStyle = same ? CLUSTER[a.c] : '#b8b2cc';
+      ctx.globalAlpha = (1 - d / LINK) * (same ? 0.62 : 0.26);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    for (const p of nodes) {
+      const d = Math.hypot(mx - p.x, my - p.y);
+      if (d >= REACH) continue;
+      ctx.strokeStyle = CLUSTER[p.c]; ctx.globalAlpha = (1 - d / REACH) * 0.55;
+      ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(p.x, p.y); ctx.stroke();
+    }
+    ctx.globalAlpha = 0.85;
+    for (const p of nodes) { ctx.fillStyle = CLUSTER[p.c]; ctx.beginPath(); ctx.arc(p.x, p.y, 3.2, 0, Math.PI * 2); ctx.fill(); }
+    ctx.globalAlpha = 1;
+  };
+}
+
+/** Painterly background, the constellation layer, and a motion switch (honours prefers-reduced-motion). */
 export function Ambient() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [motion, setMotion] = useState(true);
@@ -19,77 +57,44 @@ export function Ambient() {
 
   useEffect(() => {
     document.documentElement.classList.toggle('still', !motion);
-    try {
-      localStorage.setItem('motion', motion ? 'on' : 'off');
-    } catch {}
+    try { localStorage.setItem('motion', motion ? 'on' : 'off'); } catch {}
     const c = canvas.current;
     const ctx = c?.getContext('2d');
     if (!motion || !c || !ctx) return;
 
-    const ripples: Ripple[] = [];
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    let w = 0, h = 0, raf = 0, last = 0, lx = -999, ly = -999;
-
+    let draw = constellation(1, 1), raf = 0, mx = -9999, my = -9999;
+    const loop = () => {
+      raf = 0;  // cleared first, so a throwing frame can never leave the loop stuck
+      draw(ctx, mx, my);
+      raf = requestAnimationFrame(loop);
+    };
     const resize = () => {
-      w = window.innerWidth;
-      h = window.innerHeight;
-      c.width = w * dpr;
-      c.height = h * dpr;
+      const w = window.innerWidth, h = window.innerHeight, dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      c.width = w * dpr; c.height = h * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      draw = constellation(w, h);
     };
-    const draw = (now: number) => {
-      ctx.clearRect(0, 0, w, h);
-      for (let i = ripples.length - 1; i >= 0; i--) {
-        const r = ripples[i], life = r.big ? 3200 : 2200, p = (now - r.t) / life;
-        if (p >= 1) { ripples.splice(i, 1); continue; }
-        const R = (r.big ? 12 : 6) + p * (r.big ? 200 : 95);
-        for (let k = 0; k < (r.big ? 3 : 2); k++) {
-          const rr = R - k * 18, a = (1 - p) * (1 - k * 0.3);
-          if (rr <= 0) continue;
-          // each ring is a crest: a faint violet shadow edge plus a white highlight, squashed like water seen at an angle
-          ctx.beginPath();
-          ctx.ellipse(r.x, r.y + 1.5, rr + 2, (rr + 2) * 0.6, 0, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(91,75,209,${0.2 * a})`;
-          ctx.lineWidth = 2.4;
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.ellipse(r.x, r.y, rr, rr * 0.6, 0, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(255,255,255,${0.85 * a})`;
-          ctx.lineWidth = 1.8;
-          ctx.stroke();
-        }
-      }
-      raf = ripples.length ? requestAnimationFrame(draw) : 0;
-    };
-    const add = (x: number, y: number, big = false) => {
-      ripples.push({ x, y, t: performance.now(), big });
-      if (ripples.length > 40) ripples.shift();
-      if (!raf) raf = requestAnimationFrame(draw);
-    };
-    const onMove = (e: PointerEvent) => {
-      const now = performance.now();
-      if (now - last < 70 || Math.hypot(e.clientX - lx, e.clientY - ly) < 30) return;
-      last = now; lx = e.clientX; ly = e.clientY;
-      add(lx, ly);
-    };
-    const onDown = (e: PointerEvent) => add(e.clientX, e.clientY, true);
+    const onMove = (e: PointerEvent) => { mx = e.clientX; my = e.clientY; };
+    const onLeave = () => { mx = -9999; my = -9999; };
 
     resize();
+    raf = requestAnimationFrame(loop);
     window.addEventListener('resize', resize);
     window.addEventListener('pointermove', onMove, { passive: true });
-    window.addEventListener('pointerdown', onDown, { passive: true });
+    document.documentElement.addEventListener('pointerleave', onLeave);
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
       window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerdown', onDown);
-      ctx.clearRect(0, 0, w, h);
+      document.documentElement.removeEventListener('pointerleave', onLeave);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, c.width, c.height);
     };
   }, [motion]);
 
   return <>
     <div className="wash" aria-hidden="true"><i /><i /><i /><i /><i /></div>
-    <canvas ref={canvas} className="ripples" aria-hidden="true" />
+    <canvas ref={canvas} className="constellation" aria-hidden="true" />
     <button className="motion-toggle" type="button" aria-pressed={motion} onClick={() => setMotion(m => !m)}>
       ✦ motion: {motion ? 'on' : 'off'}
     </button>
